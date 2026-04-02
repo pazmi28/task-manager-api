@@ -1,62 +1,84 @@
 const express = require('express')
 const router = express.Router()
+const { db } = require('./firebase')
 
-// Base de datos en memoria (por ahora, sin Firebase)
-let tasks = []
-let nextId = 1
+const COLLECTION = 'tasks'
 
 // GET /api/tasks — obtener todas las tareas
-router.get('/tasks', (req, res) => {
-  res.status(200).json({ tasks })
+router.get('/tasks', async (req, res) => {
+  try {
+    const snapshot = await db.collection(COLLECTION).orderBy('createdAt', 'desc').get()
+    const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    res.status(200).json({ tasks })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
 })
 
-// GET /api/tasks/:id — obtener una tarea por id
-router.get('/tasks/:id', (req, res) => {
-  const task = tasks.find(t => t.id === parseInt(req.params.id))
-  if (!task) return res.status(404).json({ error: 'Tarea no encontrada' })
-  res.status(200).json({ task })
+// GET /api/tasks/:id — obtener una tarea
+router.get('/tasks/:id', async (req, res) => {
+  try {
+    const doc = await db.collection(COLLECTION).doc(req.params.id).get()
+    if (!doc.exists) return res.status(404).json({ error: 'Tarea no encontrada' })
+    res.status(200).json({ task: { id: doc.id, ...doc.data() } })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
 })
 
 // POST /api/tasks — crear tarea
-router.post('/tasks', (req, res) => {
-  const { title, priority } = req.body
+router.post('/tasks', async (req, res) => {
+  try {
+    const { title, priority } = req.body
+    if (!title) return res.status(400).json({ error: 'El campo title es obligatorio' })
 
-  if (!title) {
-    return res.status(400).json({ error: 'El campo title es obligatorio' })
+    const task = {
+      title,
+      priority: priority || 'normal',
+      completed: false,
+      createdAt: new Date().toISOString()
+    }
+
+    const docRef = await db.collection(COLLECTION).add(task)
+    res.status(201).json({ task: { id: docRef.id, ...task } })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
   }
-
-  const task = {
-    id: nextId++,
-    title,
-    priority: priority || 'normal',
-    completed: false,
-    createdAt: new Date().toISOString()
-  }
-
-  tasks.push(task)
-  res.status(201).json({ task })
 })
 
-// PATCH /api/tasks/:id — actualizar tarea parcialmente
-router.patch('/tasks/:id', (req, res) => {
-  const task = tasks.find(t => t.id === parseInt(req.params.id))
-  if (!task) return res.status(404).json({ error: 'Tarea no encontrada' })
+// PATCH /api/tasks/:id — actualizar tarea
+router.patch('/tasks/:id', async (req, res) => {
+  try {
+    const ref = db.collection(COLLECTION).doc(req.params.id)
+    const doc = await ref.get()
+    if (!doc.exists) return res.status(404).json({ error: 'Tarea no encontrada' })
 
-  const { title, priority, completed } = req.body
-  if (title !== undefined) task.title = title
-  if (priority !== undefined) task.priority = priority
-  if (completed !== undefined) task.completed = completed
+    const { title, priority, completed } = req.body
+    const updates = {}
+    if (title !== undefined) updates.title = title
+    if (priority !== undefined) updates.priority = priority
+    if (completed !== undefined) updates.completed = completed
 
-  res.status(200).json({ task })
+    await ref.update(updates)
+    const updated = await ref.get()
+    res.status(200).json({ task: { id: updated.id, ...updated.data() } })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
 })
 
 // DELETE /api/tasks/:id — eliminar tarea
-router.delete('/tasks/:id', (req, res) => {
-  const index = tasks.findIndex(t => t.id === parseInt(req.params.id))
-  if (index === -1) return res.status(404).json({ error: 'Tarea no encontrada' })
+router.delete('/tasks/:id', async (req, res) => {
+  try {
+    const ref = db.collection(COLLECTION).doc(req.params.id)
+    const doc = await ref.get()
+    if (!doc.exists) return res.status(404).json({ error: 'Tarea no encontrada' })
 
-  tasks.splice(index, 1)
-  res.status(200).json({ message: 'Tarea eliminada correctamente' })
+    await ref.delete()
+    res.status(200).json({ message: 'Tarea eliminada correctamente' })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
 })
 
 module.exports = router
