@@ -30,7 +30,15 @@ router.get('/tasks/:id', async (req, res) => {
 router.post('/tasks', async (req, res) => {
   try {
     const { title, priority } = req.body
-    if (!title) return res.status(400).json({ error: 'El campo title es obligatorio' })
+    if (!req.body || !req.body.title) {
+  return res.status(400).json({ error: 'El campo title es obligatorio' });
+}
+if (typeof req.body.title !== 'string' || req.body.title.trim() === '') {
+  return res.status(400).json({ error: 'El campo title debe ser un texto no vacío' });
+}
+if (req.body.title.length > 100) {
+  return res.status(400).json({ error: 'El campo title no puede superar los 100 caracteres' });
+}
 
     const task = {
       title,
@@ -79,6 +87,22 @@ router.delete('/tasks/:id', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
+})
+
+// GET /api/docs — documentación básica
+router.get('/docs', (req, res) => {
+  res.json({
+    name: 'Task Manager API',
+    version: '1.0.0',
+    endpoints: [
+      { method: 'GET',    path: '/api/tasks',     description: 'Obtener todas las tareas' },
+      { method: 'GET',    path: '/api/tasks/:id', description: 'Obtener una tarea por ID' },
+      { method: 'POST',   path: '/api/tasks',     description: 'Crear tarea (title obligatorio, max 100 chars)' },
+      { method: 'PATCH',  path: '/api/tasks/:id', description: 'Actualizar campos parcialmente' },
+      { method: 'DELETE', path: '/api/tasks/:id', description: 'Eliminar tarea' },
+      { method: 'GET',    path: '/api/docs',      description: 'Esta documentación' }
+    ]
+  })
 })
 
 module.exports = router
