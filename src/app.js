@@ -11,7 +11,19 @@ const rateLimit = require('express-rate-limit')
 const app = express()
 
 // Middleware
-app.use(cors())
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? ['https://task-manager-api-eight-psi.vercel.app']
+  : ['http://localhost:3000']
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true)
+    } else {
+      callback(new Error(`CORS: origen no permitido — ${origin}`))
+    }
+  }
+}))
 app.use(express.json())
 // Rate limiting — máximo 100 peticiones por IP cada 15 minutos
 const limiter = rateLimit({
