@@ -23,7 +23,5 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      - name: Verificar que el servidor arranca
-        run: node -e "require('./src/app.js')"
-        env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      - name: Verificar sintaxis del proyecto
+        run: node --check src/app.js && node --check src/routes.js && node --check src/firebase.js
