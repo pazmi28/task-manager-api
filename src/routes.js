@@ -63,9 +63,30 @@ router.patch('/tasks/:id', async (req, res) => {
 
     const { title, priority, completed } = req.body
     const updates = {}
-    if (title !== undefined) updates.title = title
-    if (priority !== undefined) updates.priority = priority
-    if (completed !== undefined) updates.completed = completed
+
+    if (title !== undefined) {
+      if (typeof title !== 'string' || title.trim() === '') {
+        return res.status(400).json({ error: 'El campo title debe ser un texto no vacío' })
+      }
+      if (title.length > 100) {
+        return res.status(400).json({ error: 'El campo title no puede superar los 100 caracteres' })
+      }
+      updates.title = title
+    }
+
+    if (priority !== undefined) {
+      if (!['low', 'normal', 'high'].includes(priority)) {
+        return res.status(400).json({ error: "El campo priority debe ser 'low', 'normal' o 'high'" })
+      }
+      updates.priority = priority
+    }
+
+    if (completed !== undefined) {
+      if (typeof completed !== 'boolean') {
+        return res.status(400).json({ error: 'El campo completed debe ser un booleano' })
+      }
+      updates.completed = completed
+    }
 
     await ref.update(updates)
     const updated = await ref.get()
